@@ -4,6 +4,8 @@ import           Text.ParserCombinators.Parsec hiding (spaces)
 
 import           Data
 
+-- TODO: move to Impl and export only public API here
+
 spaces :: Parser ()
 spaces = skipMany1 space
 
@@ -24,8 +26,14 @@ parseAtom = do
              _    -> Atom atom
 
 
+parseNegativeInt :: Parser Integer
+parseNegativeInt = char '-' *> ((flip subtract 0) <$> parsePositiveInt)
+
+parsePositiveInt :: Parser Integer
+parsePositiveInt = read <$> many1 digit
+
 parseNumber :: Parser LispVal
-parseNumber = Number . read <$> many1 digit
+parseNumber = Number <$> (parseNegativeInt <|> parsePositiveInt)
 
 parseList :: Parser LispVal
 parseList = List <$> between (char '(') (char ')') (sepBy parseExpr spaces)
@@ -46,9 +54,9 @@ parseQuoted = do
   return $ List [Atom "quote", x]
 
 parseExpr :: Parser LispVal
-parseExpr = parseAtom
+parseExpr = parseNumber
+          <|> parseAtom
           <|> parseString
-          <|> parseNumber
           <|> (try parseList <|> parseDottedList)
 
 readExpr :: String -> String
