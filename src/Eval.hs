@@ -1,20 +1,21 @@
 module Eval where
 
+import           Control.Monad.Except
 import           Data
 
-eval :: LispVal -> LispVal
-eval val@(Bool _)               = val
-eval val@(String _)             = val
-eval val@(Number _)             = val
-eval (List [Atom "quote", val]) = val
-eval (List (Atom func : args))  = apply func $ map eval args
+eval :: LispVal -> ThrowsError LispVal
+eval val@(Bool _)               = return val
+eval val@(String _)             = return val
+eval val@(Number _)             = return val
+eval (List [Atom "quote", val]) = return val
+eval (List (Atom func : args))  = mapM eval args >>= apply func
 -- TODO
-eval _                          = undefined
+eval badForm                    = throwError $ BadSpecialForm "Unrecognized special form" badForm
 
-apply :: String -> [LispVal] -> LispVal
-apply func args = maybe (Bool False) ($ args) $ lookup func primitives
+apply :: String -> [LispVal] -> ThrowsError LispVal
+apply func args = maybe (throwError $ NoFunction "Unrecognized primitive function args" func) ($ args) $ lookup func primitives
 
-primitives :: [(String, [LispVal] -> LispVal)]
+primitives :: [(String, [LispVal] -> ThrowsError LispVal)]
 primitives =
   [ ("+", numericBinOp (+))
   , ("-", numericBinOp (-))
@@ -23,10 +24,13 @@ primitives =
   , ("%", numericBinOp mod)
   ]
 
-numericBinOp :: (Integer -> Integer -> Integer) -> [LispVal] -> LispVal
-numericBinOp op params = Number $ foldl1 op $ map unpackNum params
+numericBinOp :: (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsError LispVal
+numericBinOp _ [] =  throwError $ NumArgs 2 []
+numericBinOp _ val@[_] =  throwError $ NumArgs 2 val
+numericBinOp op params = mapM unpackNum params >>= return . Number . foldl1 op
 
 -- TODO: use GADTs or Phantom Types to make this impossible at compile time
-unpackNum :: LispVal -> Integer
-unpackNum (Number n) = n
-unpackNum _ = 0
+unpackNum :: LispVal -> ThrowsError Integer
+unpackNum (Number n) = return n
+unpackNum (String s) = throwError $ TypeMismatch "number" $ String s
+unpackNum badForm = throwError $ TypeMismatch "number" badForm
