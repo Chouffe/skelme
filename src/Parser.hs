@@ -1,10 +1,6 @@
 module Parser where
 
-import           System.Environment
 import           Text.ParserCombinators.Parsec hiding (spaces)
-
-import           Control.Applicative           hiding (many, (<|>))
-import           Control.Monad
 
 import           Data
 
@@ -39,13 +35,13 @@ parseDottedList = do
   (h, t) <- between (char '(') (char ')') inDottedList
   return $ DottedList h t
   where inDottedList = do
-          head <- endBy parseExpr spaces
-          tail <- char '.' >> spaces >> parseExpr
-          return $ (head, tail)
+          h <- endBy parseExpr spaces
+          t <- char '.' >> spaces >> parseExpr
+          return $ (h, t)
 
 parseQuoted :: Parser LispVal
 parseQuoted = do
-  char '\''
+  _ <- char '\''
   x <- parseExpr
   return $ List [Atom "quote", x]
 
@@ -59,4 +55,4 @@ readExpr :: String -> String
 readExpr input =
   case parse parseExpr "lisp" input of
     Left err  -> "No match: " ++ show err
-    Right val -> "Value found"
+    Right _ -> "Value found"
