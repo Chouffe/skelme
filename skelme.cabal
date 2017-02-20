@@ -22,6 +22,7 @@ library
                      , Repl
   build-depends:       base >= 4.7 && < 5
                      , parsec
+                     , transformers
                      , HUnit
                      , hspec
                      , QuickCheck

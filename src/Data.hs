@@ -1,6 +1,9 @@
 module Data where
 
-import           Control.Monad.Except
+import Data.Maybe (isJust)
+import Control.Monad.Trans.Except
+import Control.Monad.IO.Class
+import Data.IORef
 import           Data.List           (intercalate)
 import           Text.Parsec.Error   (ParseError)
 
@@ -45,11 +48,33 @@ instance Show LispError where
 
 type ThrowsError = Either LispError
 
--- Polymorphic enough?
-trapError :: (MonadError e m, Show e) => m String -> m String
-trapError action = catchError action (return . show)
+type IOThrowsError = ExceptT LispError IO
 
--- TODO: avoid
-extractValue :: ThrowsError a -> a
-extractValue (Right val) = val
-extractValue _ = error "ERROR"
+liftThrows :: ThrowsError a -> IOThrowsError a
+liftThrows (Left err) = throwE err
+liftThrows (Right val) = return val
+
+-- Environment
+
+type Env = IORef [(String, IORef LispVal)]
+
+emptyEnv :: IO Env
+emptyEnv = newIORef []
+
+isBound :: Env -> String -> IO Bool
+isBound envRef var = do
+  env <- readIORef envRef
+  return $ isJust (lookup var env)
+
+getVar :: Env -> String -> IOThrowsError LispVal
+getVar envRef var = do
+  env <- liftIO $ readIORef envRef
+  maybe (throwE $ UnboundVar "Getting an unbound var" var) (liftIO . readIORef) (lookup var env)
+
+setVar :: Env -> String -> LispVal -> IOThrowsError LispVal
+setVar = undefined
+
+definedVar :: Env -> String -> LispVal -> IOThrowsError LispVal
+definedVar = undefined
+
+
