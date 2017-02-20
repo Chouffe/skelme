@@ -1,12 +1,10 @@
 module Main where
 
-import Test.Hspec
+import qualified EvalSpec
 import qualified ParserSpec
-
+import           Test.Hspec
 
 main :: IO ()
-main = hspec $ ParserSpec.specs
-
--- main :: IO ()
--- main = putStrLn "Test suite not yet implemented"
-
+main = hspec $ do
+  describe "ParsecSpec" $ ParserSpec.specs
+  describe "EvalSpec" $ EvalSpec.specs
