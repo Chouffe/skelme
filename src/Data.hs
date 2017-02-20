@@ -11,11 +11,11 @@ data LispVal = Atom String
   deriving (Eq)
 
 instance Show LispVal where
-  show (Atom string) = string
+  show (Atom name) = name
   show (List xs) = "(" ++ (intercalate " " (map show xs)) ++ ")"
   show (DottedList hs t) = "(" ++ (intercalate " " (map show hs)) ++ " . " ++ show t ++ ")"
   show (Number k) = show k
-  show (String s) = s
+  show (String s) = "\"" ++ s ++ "\""
   show (Bool b) = case b of
                     True  -> "#t"
                     False -> "#f"

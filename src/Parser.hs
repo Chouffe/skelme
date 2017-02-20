@@ -4,7 +4,7 @@ import           Text.ParserCombinators.Parsec hiding (spaces)
 
 import           Data
 
--- TODO: move to Impl and export only public API here
+-- TODO: move to Impl and export only public API here which is parseExpr
 
 spaces :: Parser ()
 spaces = skipMany1 space
@@ -59,8 +59,8 @@ parseExpr = parseNumber
           <|> parseString
           <|> (try parseList <|> parseDottedList)
 
-readExpr :: String -> String
+readExpr :: String -> LispVal
 readExpr input =
   case parse parseExpr "lisp" input of
-    Left err  -> "No match: " ++ show err
-    Right _ -> "Value found"
+    Left err  -> String $ "No match: " ++ show err
+    Right val -> val
