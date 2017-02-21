@@ -18,8 +18,14 @@ eval _ (List (Atom "car" : val))  = liftThrows $ car val
 eval _ (List (Atom "cdr" : val))  = liftThrows $ cdr val
 eval _ (List (Atom "cons" : val)) = liftThrows $ cons val
 eval _ (List (Atom "eqv" : val))  = liftThrows $ eqv val
+
 eval env (List [Atom "define", Atom var, form]) =
   eval env form >>= defineVar env var
+
+eval env (List (Atom "define" : (List (Atom var : p)) : b)) =
+  makeNormalFunc env (map show p) b >>= defineVar env var
+
+-- TODO: function definition for DottedList
 eval env (List [Atom "set!", Atom var, form]) =
   eval env form >>= setVar env var
 
@@ -28,9 +34,14 @@ eval env (List [Atom "if", predicate, conseq, alt]) = do
   case result of
     Bool False -> eval env alt
     _          -> eval env conseq
+eval env (List (Atom "lambda" : List p : b)) = makeNormalFunc env (map show p) b
 
+-- TODO: function application for dottedList
 -- Function application
-eval env (List (Atom func : args))  = mapM (eval env) args >>= liftThrows . apply func
+eval env (List (function : args)) = do
+  lambda  <- eval env function
+  argVals <- mapM (eval env) args
+  apply lambda argVals
 
 -- BadSpecialForm
 eval _ badForm                    = throwError $ BadSpecialForm "Unrecognized special form" badForm
@@ -70,10 +81,15 @@ eqv [(List xs), (List ys)] =
 eqv [_, _] = return $ Bool False
 eqv badArgList = throwError $ NumArgs 2 badArgList
 
-
-apply :: String -> [LispVal] -> ThrowsError LispVal
-apply func args =
-  maybe (throwError $ NoFunction "Unrecognized primitive function args" func) ($ args) $ lookup func primitives
+apply :: LispVal -> [LispVal] -> IOThrowsError LispVal
+apply (PrimitiveFunc func) args = liftThrows $ func args
+apply (Func p v b c) args =
+  if length p /= length args && v == Nothing
+  then throwError $ NumArgs (num p) args
+  else (liftIO $ bindVars c $ zip p args) >>= evalBody
+  where num = toInteger . length
+        evalBody env = liftM last $ mapM (eval env) b
+apply val args = liftThrows $ throwError $ NoFunction (show val) (show args)
 
 primitives :: [(String, [LispVal] -> ThrowsError LispVal)]
 primitives =
@@ -96,6 +112,10 @@ primitives =
   , ("string<=?", strBoolBinop (<=))
   , ("string>=?", strBoolBinop (>=))
   ]
+
+primitiveBindings :: IO Env
+primitiveBindings = emptyEnv >>= (flip bindVars $ map makePrimitiveFunc primitives)
+  where makePrimitiveFunc (var, func) = (var, PrimitiveFunc func)
 
 boolBinop :: (LispVal -> ThrowsError a) -> (a -> a -> Bool) -> [LispVal] -> ThrowsError LispVal
 boolBinop unpacker op args =
@@ -127,7 +147,7 @@ boolBoolBinop = boolBinop unpackBool
 numericBinOp :: (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsError LispVal
 numericBinOp _ []      =  throwError $ NumArgs 2 []
 numericBinOp _ val@[_] =  throwError $ NumArgs 2 val
-numericBinOp op params = mapM unpackNum params >>= return . Number . foldl1 op
+numericBinOp op parameters = mapM unpackNum parameters >>= return . Number . foldl1 op
 
 -- TODO: use GADTs or Phantom Types to make this impossible at compile time
 unpackNum :: LispVal -> ThrowsError Integer

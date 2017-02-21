@@ -3,6 +3,7 @@
 module Data where
 
 import Data.Maybe (isJust)
+import Control.Monad (liftM)
 import Control.Monad.Trans.Except
 import Control.Monad.IO.Class
 import Data.IORef
@@ -15,7 +16,20 @@ data LispVal = Atom String
              | Number Integer
              | String String
              | Bool Bool
-  deriving (Eq)
+             | PrimitiveFunc ([LispVal] -> ThrowsError LispVal)
+             | Func { params :: [String]
+                    , vararg :: (Maybe String)
+                    , body :: [LispVal]
+                    , closure :: Env }
+
+makeFunc :: (Maybe String) -> Env -> [String] -> [LispVal] -> IOThrowsError LispVal
+makeFunc v env p b = return $ Func p v b env
+
+makeNormalFunc :: Env -> [String] -> [LispVal] -> IOThrowsError LispVal
+makeNormalFunc = makeFunc Nothing
+
+makeVarArgs :: String -> Env -> [String] -> [LispVal] -> IOThrowsError LispVal
+makeVarArgs = makeFunc . Just . show
 
 unwordsList :: Show a => [a] -> String
 unwordsList = intercalate " " . map show
@@ -30,6 +44,9 @@ instance Show LispVal where
                     True  -> "#t"
                     False -> "#f"
 
+  show (PrimitiveFunc _) = "<primitive>"
+  show (Func args _ b _) = "(lambda  (" ++ unwordsList args ++  ") (" ++ unwordsList b ++ "))"
+
 data LispError = NumArgs Integer [LispVal]
                | TypeMismatch String LispVal
                | Parser ParseError
@@ -37,7 +54,6 @@ data LispError = NumArgs Integer [LispVal]
                | NoFunction String String
                | UnboundVar String String
                | Default String
-  deriving (Eq)
 
 instance Show LispError where
   show (NumArgs expected found) = "Expected " ++ show expected ++ " args; found values " ++ unwordsList found
@@ -105,5 +121,5 @@ defineVar envRef var val = do
 bindVars :: Env -> [(String, LispVal)] -> IO Env
 bindVars envRef bindings =
   readIORef envRef >>= extendEnv bindings >>= newIORef
-  where extendEnv bs env = mapM addBinding bs >>= return . (++ env)
+  where extendEnv bs env = liftM (++ env) $ mapM addBinding bs
         addBinding (var, value) = (var,) <$> newIORef value

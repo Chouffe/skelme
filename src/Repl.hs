@@ -2,14 +2,14 @@ module Repl where
 
 import System.IO
 
+import Data.IORef (readIORef)
 import Control.Monad
-import Eval (eval)
+import Eval (eval, primitiveBindings)
 import Parser (readExpr')
 import Data
   ( Env
   , liftThrows
   , runIOThrows
-  , emptyEnv
   )
 
 flushStr :: String -> IO ()
@@ -33,4 +33,23 @@ until_ p prompt action = do
   else action result >> until_ p prompt action
 
 runRepl :: IO ()
-runRepl = emptyEnv >>= (\env -> until_ (== "quit") (readPrompt "λ> ") (evalAndPrint env))
+runRepl =
+  primitiveBindings >>=
+    (\env -> until_ (== "quit")
+                    (readPrompt "λ> ")
+                    (evalAndPrint env))
+
+-- Prints the environment after each evaluation
+runDebugRepl :: IO ()
+runDebugRepl =
+  primitiveBindings >>=
+    (\env -> until_ (== "quit") (readPrompt "λ> ")
+      (\s -> do result <- evalAndPrint env s
+                printEnv env
+                return result))
+
+-- Debugging purpose
+printEnv :: Env -> IO ()
+printEnv envRef = do
+  env <- readIORef envRef
+  mapM_ (\(var, ioVal) -> readIORef ioVal >>= \val -> putStrLn $ var ++ "\t -> \t" ++ show val) env
