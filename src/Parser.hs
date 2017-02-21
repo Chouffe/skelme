@@ -54,9 +54,10 @@ parseQuoted = do
   x <- parseExpr
   return $ List [Atom "quote", x]
 
+-- TODO: fix negative numbers that get parsed by parseAtom (should be in a try to backtrack
 parseExpr :: Parser LispVal
-parseExpr = parseNumber
-          <|> parseAtom
+parseExpr = parseAtom
+          <|> parseNumber
           <|> parseString
           <|> (try parseList <|> parseDottedList)
 
