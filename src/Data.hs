@@ -1,3 +1,5 @@
+{-# LANGUAGE TupleSections #-}
+
 module Data where
 
 import Data.Maybe (isJust)
@@ -50,6 +52,13 @@ type ThrowsError = Either LispError
 
 type IOThrowsError = ExceptT LispError IO
 
+runIOThrows :: IOThrowsError String -> IO String
+runIOThrows action = do
+  e <- runExceptT action
+  case e of
+    Right val -> return $ val
+    Left err  -> return $ show err
+
 liftThrows :: ThrowsError a -> IOThrowsError a
 liftThrows (Left err) = throwE err
 liftThrows (Right val) = return val
@@ -58,13 +67,17 @@ liftThrows (Right val) = return val
 
 type Env = IORef [(String, IORef LispVal)]
 
-emptyEnv :: IO Env
-emptyEnv = newIORef []
+-- Private API
 
 isBound :: Env -> String -> IO Bool
 isBound envRef var = do
   env <- readIORef envRef
   return $ isJust (lookup var env)
+
+-- Public API
+
+emptyEnv :: IO Env
+emptyEnv = newIORef []
 
 getVar :: Env -> String -> IOThrowsError LispVal
 getVar envRef var = do
@@ -72,9 +85,25 @@ getVar envRef var = do
   maybe (throwE $ UnboundVar "Getting an unbound var" var) (liftIO . readIORef) (lookup var env)
 
 setVar :: Env -> String -> LispVal -> IOThrowsError LispVal
-setVar = undefined
+setVar envRef var val = do
+  env <- liftIO $ readIORef envRef
+  maybe (throwE $ UnboundVar "Setting an unbound var" var)
+        (liftIO . (flip writeIORef val))
+        (lookup var env)
+  return val
 
-definedVar :: Env -> String -> LispVal -> IOThrowsError LispVal
-definedVar = undefined
+defineVar :: Env -> String -> LispVal -> IOThrowsError LispVal
+defineVar envRef var val = do
+  alreadyBound <- liftIO $ isBound envRef var
+  if alreadyBound
+  then setVar envRef var val
+  else do
+    valRef <- liftIO $ newIORef val
+    liftIO $ modifyIORef envRef ((var, valRef):)
+    return $ val
 
-
+bindVars :: Env -> [(String, LispVal)] -> IO Env
+bindVars envRef bindings =
+  readIORef envRef >>= extendEnv bindings >>= newIORef
+  where extendEnv bs env = mapM addBinding bs >>= return . (++ env)
+        addBinding (var, value) = (var,) <$> newIORef value

@@ -3,30 +3,37 @@ module Eval where
 import           Control.Monad.Except
 import           Data
 
-eval :: LispVal -> ThrowsError LispVal
+eval :: Env -> LispVal -> IOThrowsError LispVal
 -- Primitives
-eval val@(Bool _)               = return val
-eval val@(String _)             = return val
-eval val@(Number _)             = return val
+eval _ val@(Bool _)               = return val
+eval _ val@(String _)             = return val
+eval _ val@(Number _)             = return val
+
+-- Atoms
+eval env (Atom s)                 = getVar env s
 
 -- Special Forms
-eval (List [Atom "quote", val]) = return val
-eval (List (Atom "car" : val))  = car val
-eval (List (Atom "cdr" : val))  = cdr val
-eval (List (Atom "cons" : val)) = cons val
-eval (List (Atom "eqv" : val))  = eqv val
+eval _ (List [Atom "quote", val]) = return val
+eval _ (List (Atom "car" : val))  = liftThrows $ car val
+eval _ (List (Atom "cdr" : val))  = liftThrows $ cdr val
+eval _ (List (Atom "cons" : val)) = liftThrows $ cons val
+eval _ (List (Atom "eqv" : val))  = liftThrows $ eqv val
+eval env (List [Atom "define", Atom var, form]) =
+  eval env form >>= defineVar env var
+eval env (List [Atom "set!", Atom var, form]) =
+  eval env form >>= setVar env var
 
-eval (List [Atom "if", predicate, conseq, alt]) = do
-  result <- eval predicate
+eval env (List [Atom "if", predicate, conseq, alt]) = do
+  result <- eval env predicate
   case result of
-    Bool False -> eval alt
-    _          -> eval conseq
+    Bool False -> eval env alt
+    _          -> eval env conseq
 
 -- Function application
-eval (List (Atom func : args))  = mapM eval args >>= apply func
+eval env (List (Atom func : args))  = mapM (eval env) args >>= liftThrows . apply func
 
 -- BadSpecialForm
-eval badForm                    = throwError $ BadSpecialForm "Unrecognized special form" badForm
+eval _ badForm                    = throwError $ BadSpecialForm "Unrecognized special form" badForm
 
 -- Special forms
 car :: [LispVal] -> ThrowsError LispVal
@@ -65,7 +72,8 @@ eqv badArgList = throwError $ NumArgs 2 badArgList
 
 
 apply :: String -> [LispVal] -> ThrowsError LispVal
-apply func args = maybe (throwError $ NoFunction "Unrecognized primitive function args" func) ($ args) $ lookup func primitives
+apply func args =
+  maybe (throwError $ NoFunction "Unrecognized primitive function args" func) ($ args) $ lookup func primitives
 
 primitives :: [(String, [LispVal] -> ThrowsError LispVal)]
 primitives =
