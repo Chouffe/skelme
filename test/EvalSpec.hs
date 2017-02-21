@@ -1,11 +1,12 @@
 module EvalSpec where
 
-import Test.QuickCheck (property)
-import Test.Hspec
+import           Test.Hspec
+import           Test.QuickCheck (property)
 
-import Data
-import Eval (eval)
+import           Data
+import           Eval            (eval)
 
+-- TODO: fix eval tests (new Monad Transformr)
 specs :: Spec
 specs =
   describe "Eval" $ do

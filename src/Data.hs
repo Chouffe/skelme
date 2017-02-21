@@ -2,13 +2,13 @@
 
 module Data where
 
-import Data.Maybe (isJust)
-import Control.Monad (liftM)
-import Control.Monad.Trans.Except
-import Control.Monad.IO.Class
-import Data.IORef
-import           Data.List           (intercalate)
-import           Text.Parsec.Error   (ParseError)
+import           Control.Monad              (liftM)
+import           Control.Monad.IO.Class
+import           Control.Monad.Trans.Except
+import           Data.IORef
+import           Data.List                  (intercalate)
+import           Data.Maybe                 (isJust)
+import           Text.Parsec.Error          (ParseError)
 
 data LispVal = Atom String
              | List [LispVal]
@@ -17,10 +17,12 @@ data LispVal = Atom String
              | String String
              | Bool Bool
              | PrimitiveFunc ([LispVal] -> ThrowsError LispVal)
-             | Func { params :: [String]
-                    , vararg :: (Maybe String)
-                    , body :: [LispVal]
+             | Func { params  :: [String]
+                    , vararg  :: (Maybe String)
+                    , body    :: [LispVal]
                     , closure :: Env }
+
+-- TODO: add an equal instance for LispVal
 
 makeFunc :: (Maybe String) -> Env -> [String] -> [LispVal] -> IOThrowsError LispVal
 makeFunc v env p b = return $ Func p v b env
@@ -55,6 +57,8 @@ data LispError = NumArgs Integer [LispVal]
                | UnboundVar String String
                | Default String
 
+-- TODO: add an equal instance for LispError
+
 instance Show LispError where
   show (NumArgs expected found) = "Expected " ++ show expected ++ " args; found values " ++ unwordsList found
   show (TypeMismatch expected found) = "Invalid Type: expected " ++ expected ++ ", found " ++ show found
@@ -76,7 +80,7 @@ runIOThrows action = do
     Left err  -> return $ show err
 
 liftThrows :: ThrowsError a -> IOThrowsError a
-liftThrows (Left err) = throwE err
+liftThrows (Left err)  = throwE err
 liftThrows (Right val) = return val
 
 -- Environment

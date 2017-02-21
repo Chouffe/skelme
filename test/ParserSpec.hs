@@ -1,18 +1,13 @@
 module ParserSpec where
 
-import Test.QuickCheck (property, forAll, elements)
-import Test.Hspec
-import Text.ParserCombinators.Parsec  (parse)
+import           Test.Hspec
+import           Test.QuickCheck               (elements, forAll, property)
+import           Text.ParserCombinators.Parsec (parse)
 
-import Data
-import Parser
-  ( parseNumber
-  , symbol
-  , parseList
-  , parseDottedList
-  , parseExpr
-  , parseQuoted
-  )
+import           Data
+import           Parser                        (parseDottedList, parseExpr,
+                                                parseList, parseNumber,
+                                                parseQuoted, symbol)
 
 -- TODO: add arbitrary instance on LispVal + show instance
 

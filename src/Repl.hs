@@ -1,16 +1,12 @@
 module Repl where
 
-import System.IO
+import           System.IO
 
-import Data.IORef (readIORef)
-import Control.Monad
-import Eval (eval, primitiveBindings)
-import Parser (readExpr')
-import Data
-  ( Env
-  , liftThrows
-  , runIOThrows
-  )
+import           Control.Monad
+import           Data          (Env, liftThrows, runIOThrows)
+import           Data.IORef    (readIORef)
+import           Eval          (eval, primitiveBindings)
+import           Parser        (readExpr')
 
 flushStr :: String -> IO ()
 flushStr str = putStr str >> hFlush stdout
