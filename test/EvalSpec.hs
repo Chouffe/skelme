@@ -2,12 +2,14 @@ module EvalSpec where
 
 import           Test.Hspec
 import           Test.QuickCheck            (Property, property, (==>))
+import           Test.QuickCheck.Monadic    (assert, monadicIO, run)
 
 import           Control.Monad.Trans.Except
 import           Data
 import           Eval                       (eval)
-import           Test.QuickCheck.Monadic    (assert, monadicIO, run)
+import           SpecUtils
 
+-- Resource: Modadic QuickCheck - https://gist.github.com/ijt/967505
 
 evalLispValToItself :: LispVal -> Property
 evalLispValToItself lispVal = monadicIO $ do
@@ -41,4 +43,8 @@ specs =
           val <- run $ runExceptT $ eval env (List [Atom "quote", Number n])
           assert $ val == Right (Number n)
       it "evals a quoted expr to an expr" $
-        pendingWith "Make LispVal an instance of Arbitrary"
+        property $ \(ALispVal lispVal) ->
+          monadicIO $ do
+          env <- run $ emptyEnv
+          val <- run $ runExceptT $ eval env (List [Atom "quote", lispVal])
+          assert $ val == Right lispVal

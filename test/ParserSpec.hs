@@ -1,15 +1,15 @@
 module ParserSpec where
 
 import           Test.Hspec
-import           Test.QuickCheck               (elements, forAll, property, (==>))
+import           Test.QuickCheck               (elements, forAll, property,
+                                                (==>))
 import           Text.ParserCombinators.Parsec (parse)
 
 import           Data
 import           Parser                        (parseDottedList, parseExpr,
                                                 parseList, parseNumber,
                                                 parseQuoted, symbol)
-
--- TODO: add arbitrary instance on LispVal + show instance
+import           SpecUtils
 
 sourceName :: String
 sourceName = "ParserSpec"
@@ -43,6 +43,15 @@ specs =
       it "parses the 2 elements dotted list" $ do
         parse parseDottedList sourceName "(1 . 2)" `shouldBe` (Right (DottedList [Number 1] (Number 2)))
 
+    describe "Lisp expr" $ do
+      -- FIXME: run test suite and work on the failed case
+      it "parses any lisp expr" $ property $
+        \(ALispVal lispVal) -> (parse parseExpr sourceName (show lispVal)) == (Right lispVal)
+      it "parses nested lists" $ do
+        parse parseExpr sourceName "((1 2))" `shouldBe` (Right (List [List [Number 1, Number 2]]))
+      it "parses nested dotted lists" $ do
+        parse parseExpr sourceName "((1 . 2) . 0)" `shouldBe` (Right (DottedList [DottedList [Number 1] (Number 2)] (Number 0)))
+
     describe "Lisp quoted values" $ do
       it "parses quoted booleans" $ property $
         \b -> (parse parseQuoted sourceName ("'" ++ (show (Bool b)))) == (Right (List [Atom "quote", (Bool b)]))
@@ -50,5 +59,6 @@ specs =
         \k -> (k >= 0) ==> (parse parseQuoted sourceName ("'" ++ (show (Number k)))) == (Right (List [Atom "quote", (Number k)]))
       it "parses quoted negative numbers" $ property $
         \k -> (k <= 0) ==> (parse parseQuoted sourceName ("'" ++ (show (Number k)))) == (Right (List [Atom "quote", (Number k)]))
-      it "parses quoted exprs" $
-        pendingWith "need to add arbitrary instance for LispVal"
+      -- FIXME: run test suite and work on the failed case
+      it "parses quoted exprs" $ property $
+        \(ALispVal lispVal) -> (parse parseQuoted sourceName ("'" ++ (show lispVal))) == (Right (List [Atom "quote", lispVal]))
