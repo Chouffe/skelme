@@ -22,7 +22,16 @@ data LispVal = Atom String
                     , body    :: [LispVal]
                     , closure :: Env }
 
--- TODO: add an equal instance for LispVal
+instance Eq LispVal where
+  (Atom a) == (Atom b) = a == b
+  (List xs) == (List ys) = all (\(x, y) -> x == y) $ zip xs ys
+  (DottedList xs a) == (DottedList ys b) = (List xs) == (List ys) && a == b
+  (Number a) == (Number b) = a == b
+  (String a) == (String b) = a == b
+  (Bool a) == (Bool b) = a == b
+
+ -- Cannot compare functions as values
+  _ == _ = False
 
 makeFunc :: (Maybe String) -> Env -> [String] -> [LispVal] -> IOThrowsError LispVal
 makeFunc v env p b = return $ Func p v b env
