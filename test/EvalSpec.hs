@@ -1,7 +1,7 @@
 module EvalSpec where
 
 import           Test.Hspec
-import           Test.QuickCheck            (Property, property)
+import           Test.QuickCheck            (Property, property, (==>))
 
 import           Control.Monad.Trans.Except
 import           Data
@@ -28,8 +28,15 @@ specs =
         property $ \b -> evalLispValToItself (Bool b)
       it "evals a number to itself" $
         property $ \n -> evalLispValToItself (Number n)
-      it "evals a quotedList to itself" $
-        property $ \n -> monadicIO $ do
+      it "evals a quote to itself (positive number)" $
+        property $ \n ->
+          (n > 0) ==> monadicIO $ do
+          env <- run $ emptyEnv
+          val <- run $ runExceptT $ eval env (List [Atom "quote", Number n])
+          assert $ val == Right (Number n)
+      it "evals a quote to itself (negative number)" $
+        property $ \n ->
+          (n < 0) ==> monadicIO $ do
           env <- run $ emptyEnv
           val <- run $ runExceptT $ eval env (List [Atom "quote", Number n])
           assert $ val == Right (Number n)

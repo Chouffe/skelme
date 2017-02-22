@@ -1,7 +1,7 @@
 module ParserSpec where
 
 import           Test.Hspec
-import           Test.QuickCheck               (elements, forAll, property)
+import           Test.QuickCheck               (elements, forAll, property, (==>))
 import           Text.ParserCombinators.Parsec (parse)
 
 import           Data
@@ -27,6 +27,12 @@ specs =
         forAll (elements "!#$%&|*+-/:<=>?@^_~") $
           \s -> (parse symbol sourceName [s]) == (Right s)
 
+    describe "Lisp Booleans" $ do
+      it "parses the #t symbol" $ do
+        parse parseExpr sourceName "#t" `shouldBe` (Right (Bool True))
+      it "parses the #f symbol" $ do
+        parse parseExpr sourceName "#f" `shouldBe` (Right (Bool False))
+
     describe "Lisp Lists" $ do
       it "parses the empty list" $ do
         parse parseList sourceName "()" `shouldBe` (Right (List []))
@@ -38,13 +44,11 @@ specs =
         parse parseDottedList sourceName "(1 . 2)" `shouldBe` (Right (DottedList [Number 1] (Number 2)))
 
     describe "Lisp quoted values" $ do
-      it "parses quoted numbers" $ property $
-        \k -> (parse parseQuoted sourceName ("'" ++ (show k))) == (Right (List [Atom "quote", (Number k)]))
+      it "parses quoted booleans" $ property $
+        \b -> (parse parseQuoted sourceName ("'" ++ (show (Bool b)))) == (Right (List [Atom "quote", (Bool b)]))
+      it "parses quoted positive numbers" $ property $
+        \k -> (k >= 0) ==> (parse parseQuoted sourceName ("'" ++ (show (Number k)))) == (Right (List [Atom "quote", (Number k)]))
+      it "parses quoted negative numbers" $ property $
+        \k -> (k <= 0) ==> (parse parseQuoted sourceName ("'" ++ (show (Number k)))) == (Right (List [Atom "quote", (Number k)]))
       it "parses quoted exprs" $
         pendingWith "need to add arbitrary instance for LispVal"
-
-    describe "Lisp Booleans" $ do
-      it "parses the #t symbol" $ do
-        parse parseExpr sourceName "#t" `shouldBe` (Right (Bool True))
-      it "parses the #f symbol" $ do
-        parse parseExpr sourceName "#f" `shouldBe` (Right (Bool False))

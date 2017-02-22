@@ -56,8 +56,7 @@ parseQuoted = do
 
 -- TODO: fix negative numbers that get parsed by parseAtom (should be in a try to backtrack
 parseExpr :: Parser LispVal
-parseExpr = parseAtom
-          <|> parseNumber
+parseExpr = (try parseNumber <|> parseAtom)
           <|> parseString
           <|> (try parseList <|> parseDottedList)
 
