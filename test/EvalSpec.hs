@@ -1,23 +1,37 @@
 module EvalSpec where
 
 import           Test.Hspec
-import           Test.QuickCheck (property)
+import           Test.QuickCheck            (Property, property)
 
+import           Control.Monad.Trans.Except
 import           Data
-import           Eval            (eval)
+import           Eval                       (eval)
+import           Test.QuickCheck.Monadic    (assert, monadicIO, run)
 
--- TODO: fix eval tests (new Monad Transformr)
+
+evalLispValToItself :: LispVal -> Property
+evalLispValToItself lispVal = monadicIO $ do
+  env <- run emptyEnv
+  val <- run $ runExceptT $ eval env lispVal
+  assert $ val == Right lispVal
+
 specs :: Spec
 specs =
   describe "Eval" $ do
     describe "primitives" $ do
-      it "evals a string to itself" $ property $
-        \s -> eval (String s) == Right (String s)
-      it "evals a Bool to itself" $ property $
-        \b -> eval (Bool b) == Right (Bool b)
-      it "evals a Number to itself" $ property $
-        \n -> eval (Number n) == Right (Number n)
-      it "evals a quoted number to a number" $ property $
-        \n -> eval (List [Atom "quote", (Number n)]) == Right (Number n)
+      it "evals a string to itself" $ do
+        env <- emptyEnv
+        (runExceptT $ eval env (String "Hello")) `shouldReturn` (Right (String "Hello"))
+      it "evals a string to itself" $
+        property $ \s -> evalLispValToItself (String s)
+      it "evals a bool to itself" $
+        property $ \b -> evalLispValToItself (Bool b)
+      it "evals a number to itself" $
+        property $ \n -> evalLispValToItself (Number n)
+      it "evals a quotedList to itself" $
+        property $ \n -> monadicIO $ do
+          env <- run $ emptyEnv
+          val <- run $ runExceptT $ eval env (List [Atom "quote", Number n])
+          assert $ val == Right (Number n)
       it "evals a quoted expr to an expr" $
         pendingWith "Make LispVal an instance of Arbitrary"

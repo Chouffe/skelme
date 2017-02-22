@@ -47,6 +47,7 @@ test-suite skelme-test
                      , HUnit
                      , hspec
                      , QuickCheck
+                     , transformers
                      , skelme
   ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010

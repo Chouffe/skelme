@@ -65,8 +65,7 @@ data LispError = NumArgs Integer [LispVal]
                | NoFunction String String
                | UnboundVar String String
                | Default String
-
--- TODO: add an equal instance for LispError
+  deriving (Eq)
 
 instance Show LispError where
   show (NumArgs expected found) = "Expected " ++ show expected ++ " args; found values " ++ unwordsList found
