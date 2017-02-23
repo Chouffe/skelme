@@ -19,7 +19,7 @@ eval _ (List [Atom "quote", val]) = return val
 eval _ (List (Atom "car" : val))  = liftThrows $ car val
 eval _ (List (Atom "cdr" : val))  = liftThrows $ cdr val
 eval _ (List (Atom "cons" : val)) = liftThrows $ cons val
-eval _ (List (Atom "eqv" : val))  = liftThrows $ eqv val
+eval _ (List (Atom "eqv?" : val))  = liftThrows $ eqv val
 
 eval env (List [Atom "define", Atom var, form]) =
   eval env form >>= defineVar env var
@@ -171,8 +171,8 @@ primitives =
   ]
 
 primitiveBindings :: IO Env
-primitiveBindings = emptyEnv >>= (flip bindVars $ map makePrimitiveFunc primitives)
-  where makePrimitiveFunc (var, func) = (var, PrimitiveFunc func)
+primitiveBindings = emptyEnv >>= (flip bindVars $ map (makeFunc IOFunc) ioPrimitives ++ map (makeFunc PrimitiveFunc) primitives)
+  where makeFunc constructor (var, func) = (var, constructor func)
 
 boolBinop :: (LispVal -> ThrowsError a) -> (a -> a -> Bool) -> [LispVal] -> ThrowsError LispVal
 boolBinop unpacker op args =

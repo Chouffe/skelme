@@ -1,6 +1,7 @@
 module Parser where
 
 import           Control.Monad.Except
+import           Text.Parsec.Char              (string)
 import           Text.ParserCombinators.Parsec hiding (spaces)
 
 import           Data
@@ -48,6 +49,9 @@ parseDottedList = do
           t <- char '.' >> spaces >> parseExpr
           return $ (h, t)
 
+parseNil :: Parser LispVal
+parseNil = (string "nil" <|> string "'()") *> pure (List [])
+
 parseQuoted :: Parser LispVal
 parseQuoted = do
   _ <- char '\''
@@ -57,6 +61,7 @@ parseQuoted = do
 parseExpr :: Parser LispVal
 parseExpr = (try parseNumber <|> parseAtom)
           <|> parseString
+          <|> parseQuoted
           <|> (try parseList <|> parseDottedList)
 
 -- TODO: move to another file
@@ -69,7 +74,7 @@ readExpr input =
 readOrThrow :: Parser a -> String -> ThrowsError a
 readOrThrow parser input =
   case parse parser "lisp" input of
-    Left err -> throwError $ Parser err
+    Left err  -> throwError $ Parser err
     Right val -> return val
 
 readExpr' :: String -> ThrowsError LispVal

@@ -1,0 +1,17 @@
+(define (null? xs) (if (eqv? x '()) #t #f))
+(define (not x) (if x #f #t))
+(define (id x) x)
+(define (flip f) (lambda (x y) (f y x)))
+(define (comp f g) (lambda (args) (f (apply g args))))
+(define (curry f arg1) (lambda (arg) (apply f (cons arg1 (list arg)))))
+(define zero? (curry = 0))
+(define (inc x) (+ x 1))
+
+(define (foldr f z xs)
+  (if (not (null? xs))
+    (f (car xs) (foldr f z (cdr xs)))
+    z))
+
+(define (map f xs) (foldr (lambda (x acc) (cons (f x) acc)) '() xs))
+
+#t

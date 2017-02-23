@@ -7,7 +7,7 @@ import           Text.ParserCombinators.Parsec (parse)
 
 import           Data
 import           Parser                        (parseDottedList, parseExpr,
-                                                parseList, parseNumber,
+                                                parseList, parseNil, parseNumber,
                                                 parseQuoted, symbol)
 import           SpecUtils
 
@@ -52,7 +52,15 @@ specs =
       it "parses nested dotted lists" $ do
         parse parseExpr sourceName "((1 . 2) . 0)" `shouldBe` (Right (DottedList [DottedList [Number 1] (Number 2)] (Number 0)))
 
+    describe "Lisp nil values" $ do
+      it "parses '() as the empty list" $ do
+        parse parseNil sourceName "'()" `shouldBe` (Right (List []))
+      it "parses nil as the empty list" $ do
+        parse parseNil sourceName "nil" `shouldBe` (Right (List []))
+
     describe "Lisp quoted values" $ do
+      it "parses quoted empty list" $ do
+        parse parseExpr sourceName "'()" `shouldBe` (Right (List []))
       it "parses quoted booleans" $ property $
         \b -> (parse parseQuoted sourceName ("'" ++ (show (Bool b)))) == (Right (List [Atom "quote", (Bool b)]))
       it "parses quoted positive numbers" $ property $
@@ -62,3 +70,6 @@ specs =
       -- FIXME: run test suite and work on the failed case
       it "parses quoted exprs" $ property $
         \(ALispVal lispVal) -> (parse parseQuoted sourceName ("'" ++ (show lispVal))) == (Right (List [Atom "quote", lispVal]))
+
+-- FIXME:
+-- Failed parsing lib expr: (6 #f "lcvfyvd" -6ba$/+by:b (:e!#15*0 "" ez !4/&h: 9 "daalivyq" . -6))
