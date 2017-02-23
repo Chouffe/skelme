@@ -5,6 +5,7 @@ import           Data
 import           Test.QuickCheck
 
 newtype ALispVal = ALispVal LispVal deriving (Eq, Show)
+newtype ALispValString = ALispValString String deriving (Eq, Show)
 
 symbolGen :: Gen Char
 symbolGen = elements "!#$%&|*+-/:<=>?@^_~"
@@ -52,5 +53,19 @@ sizedLispValGen m = frequency $
 lispValGen :: Gen LispVal
 lispValGen = sized sizedLispValGen
 
+shrinkLispVal :: LispVal -> [LispVal]
+shrinkLispVal (Bool b) = map Bool $ shrink b
+shrinkLispVal (Number n) = map Number $ shrink n
+shrinkLispVal (String s) = map String $ shrink s
+shrinkLispVal (Atom s) = map Atom $ shrink s
+-- FIXME
+shrinkLispVal (List xs) = [List [shrinked] | x <- xs, shrinked <- shrinkLispVal x]
+shrinkLispVal (DottedList as a) = [DottedList [shrinked] y | x <- as, shrinked <- shrinkLispVal x, y <- shrinkLispVal a]
+shrinkLispVal _ = []
+
 instance Arbitrary ALispVal where
   arbitrary = ALispVal <$> lispValGen
+  shrink (ALispVal lispVal) = map ALispVal $ shrinkLispVal lispVal
+
+instance Arbitrary ALispValString where
+  arbitrary = ALispValString <$> stringGen

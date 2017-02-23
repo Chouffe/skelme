@@ -8,7 +8,7 @@ import           Text.ParserCombinators.Parsec (parse)
 import           Data
 import           Parser                        (parseDottedList, parseExpr,
                                                 parseList, parseNil, parseNumber,
-                                                parseQuoted, symbol)
+                                                parseQuoted, parseString, symbol)
 import           SpecUtils
 
 sourceName :: String
@@ -17,6 +17,16 @@ sourceName = "ParserSpec"
 specs :: Spec
 specs =
   describe "Parser" $ do
+
+    describe "Strings" $ do
+      it "parses the empty string" $ do
+        (parse parseString sourceName "\"\"" == (Right (String "")))
+      it "parses spaces" $ do
+        (parse parseString sourceName "\"  \"" == (Right (String "  ")))
+      it "parses arbitrary strings" $ property $
+        \(ALispValString s) -> (parse parseString sourceName (show s)) == (Right (String s))
+      it "parses arbitrary strings" $ property $
+        \(ALispValString s) -> (parse parseExpr sourceName (show s)) == (Right (String s))
 
     describe "Numbers" $ do
       it "parses integers" $ property $
@@ -38,10 +48,19 @@ specs =
         parse parseList sourceName "()" `shouldBe` (Right (List []))
       it "parses the one element list" $ do
         parse parseList sourceName "(0)" `shouldBe` (Right (List [Number 0]))
+      it "parses the one element list" $ do
+        parse parseList sourceName "(1)" `shouldBe` (Right (List [Number 1]))
+      it "parses the one element nested list" $ do
+        parse parseList sourceName "((1))" `shouldBe` (Right (List [(List [Number 1])]))
 
     describe "Lisp Dotted Lists" $ do
       it "parses the 2 elements dotted list" $ do
         parse parseDottedList sourceName "(1 . 2)" `shouldBe` (Right (DottedList [Number 1] (Number 2)))
+        parse parseExpr sourceName "(1 . 2)" `shouldBe` (Right (DottedList [Number 1] (Number 2)))
+      it "parses this dottedList" $ do
+        parse parseDottedList sourceName "((\"79!~39\") . 0)" `shouldBe` (Right (DottedList [List [String "79!~39"]] (Number 0)))
+        parse parseExpr sourceName "((\"79!~39\") . 0)" `shouldBe` (Right (DottedList [List [String "79!~39"]] (Number 0)))
+
 
     describe "Lisp expr" $ do
       -- FIXME: run test suite and work on the failed case
