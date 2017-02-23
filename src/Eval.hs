@@ -2,6 +2,8 @@ module Eval where
 
 import           Control.Monad.Except
 import           Data
+import System.IO (IOMode(ReadMode, WriteMode), hClose, hGetLine, hPrint, hPutStrLn, openFile, readFile, stderr, stdin, stdout)
+import           Parser        (readExpr', readExprList)
 
 eval :: Env -> LispVal -> IOThrowsError LispVal
 -- Primitives
@@ -34,7 +36,11 @@ eval env (List [Atom "if", predicate, conseq, alt]) = do
   case result of
     Bool False -> eval env alt
     _          -> eval env conseq
+
 eval env (List (Atom "lambda" : List p : b)) = makeNormalFunc env (map show p) b
+
+eval env (List [Atom "load", String filename]) =
+  load filename >>= liftM last . mapM (eval env)
 
 -- TODO: function application for dottedList
 -- Function application
@@ -89,7 +95,58 @@ apply (Func p v b c) args =
   else (liftIO $ bindVars c $ zip p args) >>= evalBody
   where num = toInteger . length
         evalBody env = liftM last $ mapM (eval env) b
+apply (IOFunc func) args = func args
 apply val args = liftThrows $ throwError $ NoFunction (show val) (show args)
+
+ioPrimitives :: [(String, ([LispVal] -> IOThrowsError LispVal))]
+ioPrimitives =
+  [ ("apply", applyProc)
+  , ("open-input-file", makePort ReadMode)
+  , ("open-output-file", makePort WriteMode)
+  , ("close-input-port", closePort)
+  , ("close-output-port", closePort)
+  , ("read", readProc)
+  , ("write", writeProc)
+  , ("read-contents", readContents)
+  , ("read-all", readAll)
+  ]
+
+-- TODO: Should it be an ioPrimitive???
+applyProc :: [LispVal] -> IOThrowsError LispVal
+applyProc [func, (List args)] = apply func args
+applyProc (func : args) = apply func args
+applyProc _ = liftThrows $ throwError $ Default "bad arguments passed to apply"
+
+makePort :: IOMode -> [LispVal] -> IOThrowsError LispVal
+makePort mode [String filename] = liftM Port $ liftIO $ openFile filename mode
+makePort _ _ = liftThrows $ throwError $ Default "expecting a filename"
+
+closePort :: [LispVal] -> IOThrowsError LispVal
+closePort [Port port] = liftIO $ hClose port >> (return $ Bool True)
+closePort _ = liftThrows $ throwError $ Default "expecting a port"
+
+readProc :: [LispVal] -> IOThrowsError LispVal
+readProc [] = readProc [Port stdin]
+readProc [Port port] = (liftIO $ hGetLine port) >>= liftThrows . readExpr'
+readProc _ = liftThrows $ throwError $ Default "expecting a port"
+
+
+writeProc :: [LispVal] -> IOThrowsError LispVal
+writeProc [obj] = writeProc [obj, Port stdout]
+writeProc [obj, Port port] = liftIO $ hPrint port obj >> (return $ Bool True)
+writeProc _ = liftThrows $ throwError $ Default "expecting a port"
+
+
+readContents :: [LispVal] -> IOThrowsError LispVal
+readContents [String filename] = liftM String $ liftIO $ readFile filename
+readContents _ = liftThrows $ throwError $ Default "expecting a filename"
+
+load :: String -> IOThrowsError [LispVal]
+load filename = (liftIO $ readFile filename) >>= liftThrows . readExprList
+
+readAll :: [LispVal] -> IOThrowsError LispVal
+readAll [String filename] = liftM List $ load filename
+readAll _ = liftThrows $ throwError $ Default "expecting a filename"
 
 primitives :: [(String, [LispVal] -> ThrowsError LispVal)]
 primitives =
@@ -154,3 +211,9 @@ unpackNum :: LispVal -> ThrowsError Integer
 unpackNum (Number n) = return n
 unpackNum (String s) = throwError $ TypeMismatch "number" $ String s
 unpackNum badForm    = throwError $ TypeMismatch "number" badForm
+
+-- TODO: move somewhere else
+runOne :: [String] -> IO ()
+runOne args = do
+  env <- primitiveBindings >>= flip bindVars [("args", List $ map String $ drop 1 args)]
+  (runIOThrows $ liftM show $ eval env (List [Atom "load", String (args !! 0)])) >>= hPutStrLn stderr

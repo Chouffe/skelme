@@ -8,6 +8,7 @@ import           Control.Monad.Trans.Except
 import           Data.IORef
 import           Data.List                  (intercalate)
 import           Data.Maybe                 (isJust)
+import           System.IO                  (Handle)
 import           Text.Parsec.Error          (ParseError)
 
 data LispVal = Atom String
@@ -21,6 +22,8 @@ data LispVal = Atom String
                     , vararg  :: (Maybe String)
                     , body    :: [LispVal]
                     , closure :: Env }
+             | IOFunc ([LispVal] -> IOThrowsError LispVal)
+             | Port Handle
 
 instance Eq LispVal where
   (Atom a) == (Atom b) = a == b
@@ -57,6 +60,8 @@ instance Show LispVal where
 
   show (PrimitiveFunc _) = "<primitive>"
   show (Func args _ b _) = "(lambda  (" ++ unwordsList args ++  ") (" ++ unwordsList b ++ "))"
+  show (IOFunc _) = "<IO primitive>"
+  show (Port _) = "<IO port>"
 
 data LispError = NumArgs Integer [LispVal]
                | TypeMismatch String LispVal

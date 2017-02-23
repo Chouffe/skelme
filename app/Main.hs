@@ -1,9 +1,9 @@
 module Main where
 
-import System.Environment (getArgs)
-import Parser (readExpr)
+import           Eval               (runOne)
+import           Repl               (runRepl)
+import           System.Environment (getArgs)
 
 main :: IO ()
-main = do
-  (expr:_) <- getArgs
-  print (readExpr expr)
+main = getArgs >>= \args ->
+  if null args then runRepl else runOne $ args
