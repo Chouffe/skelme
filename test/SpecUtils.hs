@@ -11,6 +11,9 @@ newtype ALispValAtom = ALispValAtom String deriving (Eq, Show)
 symbolGen :: Gen Char
 symbolGen = elements "!#$%&|*+-/:<=>?@^_~"
 
+symbolFirstLetterGen :: Gen Char
+symbolFirstLetterGen = elements "!#$%&|*+/:<=>?@^_~"
+
 letterGen :: Gen Char
 letterGen = elements "abcdefghijklmnopqrstuvwxyz"
 
@@ -35,16 +38,16 @@ digitToChar _ = '0'
 
 lispAtomGen :: Gen String
 lispAtomGen = do
-  firstChar <- oneof [symbolGen, letterGen]
+  firstChar <- oneof [symbolFirstLetterGen, letterGen]
   restString <- listOf $ oneof [symbolGen, letterGen, digitToChar <$> positiveDigitGen]
   return $ firstChar : restString
 
 sizedLispValGen :: Int -> Gen LispVal
 sizedLispValGen m = frequency $
-  [ (3, (Bool <$> arbitrary))
-  , (3, (Number <$> arbitrary))
+  [ (1, (Bool <$> arbitrary))
+  , (1, (Number <$> arbitrary))
   , (1, (Atom <$> lispAtomGen))
-  , (3, (String <$> stringGen))
+  , (1, (String <$> stringGen))
   , (k, (List <$> listOf (sizedLispValGen m')))
   , (k, (liftA2 DottedList (listOf1 (sizedLispValGen m')) (sizedLispValGen m')))
   ]
@@ -58,8 +61,7 @@ shrinkLispVal :: LispVal -> [LispVal]
 shrinkLispVal (Bool b) = map Bool $ shrink b
 shrinkLispVal (Number n) = map Number $ shrink n
 shrinkLispVal (String s) = map String $ shrink s
-shrinkLispVal (Atom _) = []
--- FIXME
+shrinkLispVal (Atom (h:t)) = map (Atom . (h:)) $ shrink t
 shrinkLispVal (List xs) = [List [shrinked] | x <- xs, shrinked <- shrinkLispVal x]
 shrinkLispVal (DottedList as a) = [DottedList [shrinked] y | x <- as, shrinked <- shrinkLispVal x, y <- shrinkLispVal a]
 shrinkLispVal _ = []

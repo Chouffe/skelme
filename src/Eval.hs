@@ -7,9 +7,10 @@ import           Parser        (readExpr', readExprList)
 
 eval :: Env -> LispVal -> IOThrowsError LispVal
 -- Primitives
-eval _ val@(Bool _)               = return val
-eval _ val@(String _)             = return val
-eval _ val@(Number _)             = return val
+eval _ val@(Bool _)                       = return val
+eval _ val@(String _)                     = return val
+eval _ val@(Number _)                     = return val
+eval _ val@(List [Atom "quote", List []]) = return val  -- Nil Value
 
 -- Atoms
 eval env (Atom s)                 = getVar env s
@@ -77,6 +78,7 @@ eqv [(Number n1), (Number n2)] = return $ Bool $ n1 == n2
 eqv [(String s1), (String s2)] = return $ Bool $ s1 == s2
 eqv [(Atom a1), (Atom a2)] = return $ Bool $ a1 == a2
 eqv [(DottedList xs1 x1), (DottedList xs2 x2)] = eqv [(List $ x1 : xs1), (List  $ x2 : xs2)]
+eqv [List [], List []] = return $ Bool True
 eqv [(List xs), (List ys)] =
   return $ Bool $ all eqvPair $ zip xs ys
     where eqvPair (x1, x2) =

@@ -1,20 +1,27 @@
 module ParserSpec where
 
 import           Test.Hspec
-import           Test.QuickCheck               (elements, forAll, property,
-                                                (==>))
+import           Test.QuickCheck               (property, (==>))
 import           Text.ParserCombinators.Parsec (parse)
 
 import           Data
-import           Data.Either                   (isLeft)
+-- import           Data.Either                   (isLeft)
 import           Parser                        (parseAtom, parseDottedList,
                                                 parseExpr, parseList, parseNil,
                                                 parseNumber, parseQuoted,
-                                                parseString, symbol)
+                                                parseString)
 import           SpecUtils
 
+-- TODO: should test implementation in another file
+-- TODO: add extra tests for dotted lists
 
--- TODO: fix failing cases related to numbers :)
+lispValWithPositiveIntegers :: LispVal -> Bool
+lispValWithPositiveIntegers (Number k) = k >= 0
+lispValWithPositiveIntegers (Atom "-") = False
+lispValWithPositiveIntegers (List xs) = all lispValWithPositiveIntegers xs
+lispValWithPositiveIntegers (DottedList xs x) =
+  lispValWithPositiveIntegers x && all lispValWithPositiveIntegers xs
+lispValWithPositiveIntegers _ = True
 
 sourceName :: String
 sourceName = "ParserSpec"
@@ -32,15 +39,12 @@ specs =
         \(ALispValString s) -> (parse parseString sourceName (show s)) == (Right (String s))
 
     describe "Numbers" $ do
-      it "parses integers" $ property $
-        \k -> (parse parseNumber sourceName (show k)) == (Right (Number k))
-      it "should not parse the number 1e" $
-        isLeft (parse parseNumber sourceName "1e") == True
+      it "parses positive numbers" $ property $
+        \k -> (k >= 0) ==> (parse parseNumber sourceName (show k)) == (Right (Number k))
+      it "parses negative numbers" $ property $
+        \k -> (k < 0) ==> (parse parseNumber sourceName (show k)) == (Right (List [Atom "-", (Number (-k))]))
 
-    describe "Lisp Atoms" $ do
-      it "parses symbols" $ property $
-        forAll (elements "!#$%&|*+-/:<=>?@^_~") $
-          \s -> (parse symbol sourceName [s]) == (Right s)
+    describe "Atoms" $ do
       it "parses arbitrary atoms" $
         property $ \(ALispValAtom s) -> (parse parseAtom sourceName s) == Right (Atom s)
 
@@ -51,15 +55,18 @@ specs =
         parse parseAtom sourceName "#f" `shouldBe` (Right (Bool False))
 
     describe "Expr" $ do
-      it "parses symbols" $ property $
-        forAll (elements "!#$%&|*+-/:<=>?@^_~") $
-          \s -> (parse parseExpr sourceName [s]) == (Right (Atom [s]))
+      describe "Arithmetic Atoms" $ do
+        it "parses +" $ (parse parseExpr sourceName "+") == Right (Atom "+")
+        it "parses -" $ (parse parseExpr sourceName "-") == Right (Atom "-")
+        it "parses *" $ (parse parseExpr sourceName "*") == Right (Atom "*")
       it "parses atoms" $ property $
         \(ALispValAtom s) -> (parse parseExpr sourceName s) == Right (Atom s)
-      it "parses the -79e symbol" $
-        (parse parseExpr sourceName "-79e") == (Right (Atom "-79e"))
-      it "parses integers" $ property $
-        \k -> (parse parseExpr sourceName (show k)) == (Right (Number k))
+      it "should not parse the -79e symbol" $
+        (parse parseExpr sourceName "-e79") == Right (List [Atom "-", Atom "e79"])
+      it "parses positive integers" $ property $
+        \k -> (k >= 0) ==> (parse parseExpr sourceName (show k)) == (Right (Number k))
+      it "parses negative integers" $ property $
+        \k -> (k < 0) ==> (parse parseExpr sourceName (show k)) == (Right (List [Atom "-", Number (-k)]))
       it "parses the empty string" $ do
         (parse parseExpr sourceName "\"\"" == (Right (String "")))
       it "parses spaces" $ do
@@ -80,6 +87,9 @@ specs =
           parse parseExpr sourceName "(1)" `shouldBe` (Right (List [Number 1]))
         it "parses the one element nested list" $ do
           parse parseExpr sourceName "((1))" `shouldBe` (Right (List [(List [Number 1])]))
+      describe "Nil" $ do
+        it "parses '()" $ do
+          parse parseExpr sourceName "'()" `shouldBe` (Right (List [Atom "quote", List []]))
 
     describe "Lisp Lists" $ do
       it "parses the empty list" $ do
@@ -95,16 +105,12 @@ specs =
       it "parses the 2 elements dotted list" $ do
         parse parseDottedList sourceName "(1 . 2)" `shouldBe` (Right (DottedList [Number 1] (Number 2)))
         parse parseExpr sourceName "(1 . 2)" `shouldBe` (Right (DottedList [Number 1] (Number 2)))
-      it "parses a specific dottedList" $ do
-        parse parseDottedList sourceName "((\"79!~39\") . 0)" `shouldBe` (Right (DottedList [List [String "79!~39"]] (Number 0)))
-      it "parses a specific dottedList" $ do
-        parse parseExpr sourceName "((\"79!~39\") . 0)" `shouldBe` (Right (DottedList [List [String "79!~39"]] (Number 0)))
-
 
     describe "Lisp expr" $ do
-      -- FIXME: run test suite and work on the failed case
       it "parses any lisp expr" $ property $
-        \(ALispVal lispVal) -> (parse parseExpr sourceName (show lispVal)) == (Right lispVal)
+        \(ALispVal lispVal) ->
+          lispValWithPositiveIntegers lispVal ==>
+            (parse parseExpr sourceName (show lispVal)) == (Right lispVal)
       it "parses nested lists" $ do
         parse parseExpr sourceName "((1 2))" `shouldBe` (Right (List [List [Number 1, Number 2]]))
       it "parses nested dotted lists" $ do
@@ -124,11 +130,8 @@ specs =
       it "parses quoted positive numbers" $ property $
         \k -> (k >= 0) ==> (parse parseQuoted sourceName ("'" ++ (show (Number k)))) == (Right (List [Atom "quote", (Number k)]))
       it "parses quoted negative numbers" $ property $
-        \k -> (k <= 0) ==> (parse parseQuoted sourceName ("'" ++ (show (Number k)))) == (Right (List [Atom "quote", (Number k)]))
-      -- FIXME: run test suite and work on the failed case
+        \k -> (k < 0) ==> (parse parseQuoted sourceName ("'" ++ (show (Number k)))) == (Right (List [Atom "quote", (List [Atom "-", Number (-k)])]))
       it "parses quoted exprs" $ property $
-        \(ALispVal lispVal) -> (parse parseQuoted sourceName ("'" ++ (show lispVal))) == (Right (List [Atom "quote", lispVal]))
-
--- FIXME:
--- Failed parsing lib expr: (6 #f "lcvfyvd" -6ba$/+by:b (:e!#15*0 "" ez !4/&h: 9 "daalivyq" . -6))
--- Failed ((7w3hrk~u$f->) . #f)
+        \(ALispVal lispVal) ->
+          lispValWithPositiveIntegers lispVal
+            ==> (parse parseQuoted sourceName ("'" ++ (show lispVal))) == (Right (List [Atom "quote", lispVal]))

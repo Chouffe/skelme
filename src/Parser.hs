@@ -14,12 +14,18 @@ spaces = skipMany1 space
 symbol :: Parser Char
 symbol = oneOf "!#$%&|*+-/:<=>?@^_~"
 
+minusAtom :: Parser LispVal
+minusAtom = Atom <$> string "-"
+
+symbolFirstLetter :: Parser Char
+symbolFirstLetter = oneOf "!#$%&|*+/:<=>?@^_~"
+
 parseString :: Parser LispVal
 parseString = String <$> between (char '"') (char '"') (many (noneOf "\""))
 
 parseAtom :: Parser LispVal
 parseAtom = do
-  first <- letter <|> symbol
+  first <- letter <|> symbolFirstLetter
   rest <- many (letter <|> digit <|> symbol)
   let atom = first:rest
   return $ case atom of
@@ -35,7 +41,7 @@ parseNegativeInt :: Parser Integer
 parseNegativeInt = char '-' *> ((flip subtract 0) <$> parsePositiveInt)
 
 parseNumber :: Parser LispVal
-parseNumber = Number <$> (parseNegativeInt <|> parsePositiveInt)
+parseNumber = ((parseNegativeInt >>= (\n -> return $ List [Atom "-", Number (-n)])) <|> (Number <$> parsePositiveInt))
 
 parseList :: Parser LispVal
 parseList = List <$> between (char '(') (char ')') (sepBy parseExpr spaces)
@@ -59,10 +65,11 @@ parseQuoted = do
   return $ List [Atom "quote", x]
 
 parseExpr :: Parser LispVal
-parseExpr = (try parseNumber <|> parseAtom)
-          <|> parseString
-          <|> parseQuoted
-          <|> (try parseList <|> parseDottedList)
+parseExpr =
+  (try (minusAtom >>= \a -> parseExpr >>= \expr -> return $ List [a, expr]) <|> minusAtom <|> parseAtom  <|> parseNumber)
+   <|> parseString
+   <|> parseQuoted
+   <|> (try parseList <|> parseDottedList)
 
 -- TODO: move to another file
 readExpr :: String -> LispVal

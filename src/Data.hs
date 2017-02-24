@@ -25,6 +25,9 @@ data LispVal = Atom String
              | IOFunc ([LispVal] -> IOThrowsError LispVal)
              | Port Handle
 
+nil :: LispVal
+nil = (List [Atom "quote", List []])
+
 instance Eq LispVal where
   (Atom a) == (Atom b) = a == b
   (List xs) == (List ys) = all (\(x, y) -> x == y) $ zip xs ys

@@ -22,9 +22,8 @@ specs :: Spec
 specs =
   describe "Eval" $ do
     describe "primitives" $ do
-      it "evals a string to itself" $ do
-        env <- emptyEnv
-        (runExceptT $ eval env (String "Hello")) `shouldReturn` (Right (String "Hello"))
+      it "evals nil to itself" $
+        evalLispValToItself nil
       it "evals a string to itself" $
         property $ \s -> evalLispValToItself (String s)
       it "evals a bool to itself" $
