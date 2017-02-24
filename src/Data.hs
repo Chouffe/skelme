@@ -77,7 +77,7 @@ instance Show LispError where
   show (TypeMismatch expected found) = "Invalid Type: expected " ++ expected ++ ", found " ++ show found
   show (Parser parseErr) = "Parse error at " ++ show parseErr
   show (BadSpecialForm message form) = message ++ ": " ++ show form
-  show (NoFunction message func) = message ++ ": " ++ show func
+  show (NoFunction message func) = message ++ ": " ++ func
   show (UnboundVar message varname) = message ++ ": " ++ varname
   show (Default s) = "Error: " ++ s
 

@@ -6,7 +6,8 @@ import           Test.QuickCheck.Monadic    (assert, monadicIO, run)
 
 import           Control.Monad.Trans.Except
 import           Data
-import           Eval                       (eval)
+import           Data.Either (isLeft)
+import           Eval                       (eval, primitiveBindings)
 import           SpecUtils
 
 -- Resource: Modadic QuickCheck - https://gist.github.com/ijt/967505
@@ -48,3 +49,39 @@ specs =
           env <- run $ emptyEnv
           val <- run $ runExceptT $ eval env (List [Atom "quote", lispVal])
           assert $ val == Right lispVal
+
+    describe "function application" $ do
+
+      describe "simple arithmetic" $ do
+        it "addition" $
+          property $ \m -> \n -> monadicIO $ do
+            env <- run $ primitiveBindings
+            val <- run $ runExceptT $ eval env (List [Atom "+", Number m, Number n])
+            assert $ val == Right (Number (n + m))
+        it "subtraction" $
+          property $ \m -> \n -> monadicIO $ do
+            env <- run $ primitiveBindings
+            val <- run $ runExceptT $ eval env (List [Atom "-", Number m, Number n])
+            assert $ val == Right (Number (m - n))
+        it "multiplication" $
+          property $ \m -> \n -> monadicIO $ do
+            env <- run $ primitiveBindings
+            val <- run $ runExceptT $ eval env (List [Atom "*", Number m, Number n])
+            assert $ val == Right (Number (m * n))
+
+      describe "bad function application" $ do
+        it "Number is not a symbol" $
+          property $ \n (ALispVal expr) -> monadicIO $ do
+            env <- run $ emptyEnv
+            val <- run $ runExceptT $ eval env (List [Number n, expr])
+            assert $ isLeft val == True
+        it "Bool is not a symbol" $
+          property $ \b (ALispVal expr) -> monadicIO $ do
+            env <- run $ emptyEnv
+            val <- run $ runExceptT $ eval env (List [Bool b, expr])
+            assert $ isLeft val == True
+        it "String is not a symbol" $
+          property $ \s (ALispVal expr) -> monadicIO $ do
+            env <- run $ emptyEnv
+            val <- run $ runExceptT $ eval env (List [String s, expr])
+            assert $ isLeft val == True

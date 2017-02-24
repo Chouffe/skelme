@@ -28,11 +28,11 @@ parseAtom = do
              _    -> Atom atom
 
 
-parseNegativeInt :: Parser Integer
-parseNegativeInt = char '-' *> ((flip subtract 0) <$> parsePositiveInt)
-
 parsePositiveInt :: Parser Integer
 parsePositiveInt = read <$> many1 digit
+
+parseNegativeInt :: Parser Integer
+parseNegativeInt = char '-' *> ((flip subtract 0) <$> parsePositiveInt)
 
 parseNumber :: Parser LispVal
 parseNumber = Number <$> (parseNegativeInt <|> parsePositiveInt)

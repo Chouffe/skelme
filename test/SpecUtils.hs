@@ -6,6 +6,7 @@ import           Test.QuickCheck
 
 newtype ALispVal = ALispVal LispVal deriving (Eq, Show)
 newtype ALispValString = ALispValString String deriving (Eq, Show)
+newtype ALispValAtom = ALispValAtom String deriving (Eq, Show)
 
 symbolGen :: Gen Char
 symbolGen = elements "!#$%&|*+-/:<=>?@^_~"
@@ -40,10 +41,10 @@ lispAtomGen = do
 
 sizedLispValGen :: Int -> Gen LispVal
 sizedLispValGen m = frequency $
-  [ (1, (Bool <$> arbitrary))
-  , (1, (Number <$> arbitrary))
+  [ (3, (Bool <$> arbitrary))
+  , (3, (Number <$> arbitrary))
   , (1, (Atom <$> lispAtomGen))
-  , (1, (String <$> stringGen))
+  , (3, (String <$> stringGen))
   , (k, (List <$> listOf (sizedLispValGen m')))
   , (k, (liftA2 DottedList (listOf1 (sizedLispValGen m')) (sizedLispValGen m')))
   ]
@@ -57,7 +58,7 @@ shrinkLispVal :: LispVal -> [LispVal]
 shrinkLispVal (Bool b) = map Bool $ shrink b
 shrinkLispVal (Number n) = map Number $ shrink n
 shrinkLispVal (String s) = map String $ shrink s
-shrinkLispVal (Atom s) = map Atom $ shrink s
+shrinkLispVal (Atom _) = []
 -- FIXME
 shrinkLispVal (List xs) = [List [shrinked] | x <- xs, shrinked <- shrinkLispVal x]
 shrinkLispVal (DottedList as a) = [DottedList [shrinked] y | x <- as, shrinked <- shrinkLispVal x, y <- shrinkLispVal a]
@@ -69,3 +70,6 @@ instance Arbitrary ALispVal where
 
 instance Arbitrary ALispValString where
   arbitrary = ALispValString <$> stringGen
+
+instance Arbitrary ALispValAtom where
+  arbitrary = ALispValAtom <$> lispAtomGen

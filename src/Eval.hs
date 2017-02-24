@@ -96,7 +96,7 @@ apply (Func p v b c) args =
   where num = toInteger . length
         evalBody env = liftM last $ mapM (eval env) b
 apply (IOFunc func) args = func args
-apply val args = liftThrows $ throwError $ NoFunction (show val) (show args)
+apply val args = liftThrows $ throwError $ NoFunction ("trying to call an unboud function with args" ++ (show val) ++ (show args)) (show val)
 
 ioPrimitives :: [(String, ([LispVal] -> IOThrowsError LispVal))]
 ioPrimitives =
@@ -171,8 +171,8 @@ primitives =
   ]
 
 primitiveBindings :: IO Env
-primitiveBindings = emptyEnv >>= (flip bindVars $ map (makeFunc IOFunc) ioPrimitives ++ map (makeFunc PrimitiveFunc) primitives)
-  where makeFunc constructor (var, func) = (var, constructor func)
+primitiveBindings = emptyEnv >>= (flip bindVars $ map (makeFunc' IOFunc) ioPrimitives ++ map (makeFunc' PrimitiveFunc) primitives)
+  where makeFunc' constructor (var, func) = (var, constructor func)
 
 boolBinop :: (LispVal -> ThrowsError a) -> (a -> a -> Bool) -> [LispVal] -> ThrowsError LispVal
 boolBinop unpacker op args =
