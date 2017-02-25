@@ -12,7 +12,8 @@
     (f (car xs) (foldr f z (cdr xs)))
     z))
 
-(define (map f xs) (foldr (lambda (x acc) (cons (f x) acc)) '() xs))
+(define (map f xs)
+  (foldr (lambda (x acc) (cons (f x) acc)) '() xs))
 
 (define (factorial n)
   (if (<= n 1) 1 (* n (factorial (- n 1)))))

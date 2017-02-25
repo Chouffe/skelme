@@ -2,8 +2,10 @@ module Eval where
 
 import           Control.Monad.Except
 import           Data
-import System.IO (IOMode(ReadMode, WriteMode), hClose, hGetLine, hPrint, hPutStrLn, openFile, readFile, stderr, stdin, stdout)
-import           Parser        (readExpr, readExprList)
+import           Parser               (readExpr, readExprList)
+import           System.IO            (IOMode (ReadMode, WriteMode), hClose,
+                                       hGetLine, hPrint, hPutStrLn, openFile,
+                                       readFile, stderr, stdin, stdout)
 
 eval :: Env -> LispVal -> IOThrowsError LispVal
 -- Primitives
@@ -17,10 +19,6 @@ eval env (Atom s)                 = getVar env s
 
 -- Special Forms
 eval _ (List [Atom "quote", val]) = return val
-eval _ (List (Atom "car" : val))  = liftThrows $ car val
-eval _ (List (Atom "cdr" : val))  = liftThrows $ cdr val
-eval _ (List (Atom "cons" : val)) = liftThrows $ cons val
-eval _ (List (Atom "eqv?" : val))  = liftThrows $ eqv val
 
 eval env (List [Atom "define", Atom var, form]) =
   eval env form >>= defineVar env var
@@ -53,27 +51,24 @@ eval env (List (function : args)) = do
 -- BadSpecialForm
 eval _ badForm                    = throwError $ BadSpecialForm "Unrecognized special form" badForm
 
--- Special forms
--- FIXME: should be quoted list? look at the doc
 car :: [LispVal] -> ThrowsError LispVal
 car [List (x : _)]         = return x
 car [DottedList (x : _) _] = return x
 car [badArg]               = throwError $ TypeMismatch "pair" badArg
 car badArgList             = throwError $ NumArgs 1 badArgList
 
--- FIXME
 cdr :: [LispVal] -> ThrowsError LispVal
 cdr [List (_ : xs)]         = return $ List xs
 cdr [DottedList (_ : xs) x] = return $ DottedList xs x
 cdr [badArg]                = throwError $ TypeMismatch "pair" badArg
 cdr badArgList              = throwError $ NumArgs 1 badArgList
 
--- FIXME
 cons :: [LispVal] -> ThrowsError LispVal
-cons [x, List xs]         = return $ List $ x:xs
-cons [x, DottedList xs y] = return $ DottedList (x:xs) y
-cons [x1, x2]             = return $ DottedList [x1] x2
-cons badArgList           = throwError $ NumArgs 2 badArgList
+cons [x, List [Atom "quote", List []]] = return $ List [x]
+cons [x, List xs]                      = return $ List $ x:xs
+cons [x, DottedList xs y]              = return $ DottedList (x:xs) y
+cons [x1, x2]                          = return $ DottedList [x1] x2
+cons badArgList                        = throwError $ NumArgs 2 badArgList
 
 eqv :: [LispVal] -> ThrowsError LispVal
 eqv [(Bool b1), (Bool b2)] = return $ Bool $ b1 == b2
@@ -128,12 +123,12 @@ makePort _ _ = liftThrows $ throwError $ Default "expecting a filename"
 
 closePort :: [LispVal] -> IOThrowsError LispVal
 closePort [Port port] = liftIO $ hClose port >> (return $ Bool True)
-closePort _ = liftThrows $ throwError $ Default "expecting a port"
+closePort _           = liftThrows $ throwError $ Default "expecting a port"
 
 readProc :: [LispVal] -> IOThrowsError LispVal
-readProc [] = readProc [Port stdin]
+readProc []          = readProc [Port stdin]
 readProc [Port port] = (liftIO $ hGetLine port) >>= liftThrows . readExpr
-readProc _ = liftThrows $ throwError $ Default "expecting a port"
+readProc _           = liftThrows $ throwError $ Default "expecting a port"
 
 
 writeProc :: [LispVal] -> IOThrowsError LispVal
@@ -155,7 +150,11 @@ readAll _ = liftThrows $ throwError $ Default "expecting a filename"
 
 primitives :: [(String, [LispVal] -> ThrowsError LispVal)]
 primitives =
-  [ ("+", numericBinOp (+))
+  [ ("car", car)
+  , ("cdr", cdr)
+  , ("cons", cons)
+  , ("eqv?", eqv)
+  , ("+", numericBinOp (+))
   , ("-", numericBinOp (-))
   , ("*", numericBinOp (*))
   , ("/", numericBinOp div)
