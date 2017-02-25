@@ -73,14 +73,29 @@ specs =
           property $ \n (ALispVal expr) -> monadicIO $ do
             env <- run $ emptyEnv
             val <- run $ runExceptT $ eval env (List [Number n, expr])
-            assert $ isLeft val == True
+            assert $ isLeft val
         it "Bool is not a symbol" $
           property $ \b (ALispVal expr) -> monadicIO $ do
             env <- run $ emptyEnv
             val <- run $ runExceptT $ eval env (List [Bool b, expr])
-            assert $ isLeft val == True
+            assert $ isLeft val
         it "String is not a symbol" $
           property $ \s (ALispVal expr) -> monadicIO $ do
             env <- run $ emptyEnv
             val <- run $ runExceptT $ eval env (List [String s, expr])
-            assert $ isLeft val == True
+            assert $ isLeft val
+      describe "car primitive" $ do
+        it "(car '())  is '()"  $ do
+          env <- primitiveBindings
+          val <- runExceptT $ eval env (List [Atom "car", nil])
+          val `shouldBe` (Right nil)
+        it "(car '(x ... z)) is x"  $
+          property $ \((ALispValList xs), (ALispValPrimitive x)) -> monadicIO $ do
+            env <- run $ primitiveBindings
+            val <- run $ runExceptT $ eval env (List [Atom "car", List [Atom "quote", List $ x:xs]])
+            assert $ val == (Right x)
+        it "(car 'x) where x is a primitive is an error"  $
+          property $ \((ALispValPrimitive x)) -> monadicIO $ do
+            env <- run $ primitiveBindings
+            val <- run $ runExceptT $ eval env (List [Atom "car", List [Atom "quote", x]])
+            assert $ isLeft val

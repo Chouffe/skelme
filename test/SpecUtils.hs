@@ -8,6 +8,7 @@ newtype ALispVal = ALispVal LispVal deriving (Eq, Show)
 newtype ALispValList = ALispValList [LispVal] deriving (Eq, Show)
 newtype ALispValString = ALispValString String deriving (Eq, Show)
 newtype ALispValAtom = ALispValAtom String deriving (Eq, Show)
+newtype ALispValPrimitive = ALispValPrimitive LispVal deriving (Eq, Show)
 
 symbolGen :: Gen Char
 symbolGen = elements "!#$%&|*+-/:<=>?@^_~"
@@ -58,6 +59,13 @@ sizedLispValGen m = frequency $
 lispValGen :: Gen LispVal
 lispValGen = sized sizedLispValGen
 
+primitiveGen :: Gen LispVal
+primitiveGen = frequency $
+  [ (1, (Bool <$> arbitrary))
+  , (1, (Number <$> arbitrary))
+  , (1, (String <$> stringGen))
+  ]
+
 shrinkLispVal :: LispVal -> [LispVal]
 shrinkLispVal (Bool b) = map Bool $ shrink b
 shrinkLispVal (Number n) = map Number $ shrink n
@@ -75,11 +83,17 @@ instance Arbitrary ALispValList where
   arbitrary = ALispValList <$> listOf lispValGen
   shrink (ALispValList lispVals) = map (ALispValList . shrinkLispVal) lispVals
 
+-- TODO: add shrinking
 instance Arbitrary ALispValString where
   arbitrary = ALispValString <$> stringGen
 
+-- TODO: add shrinking
 instance Arbitrary ALispValAtom where
   arbitrary = ALispValAtom <$> lispAtomGen
+
+-- TODO: add shrinking
+instance Arbitrary ALispValPrimitive where
+  arbitrary = ALispValPrimitive <$> primitiveGen
 
 lispValWithPositiveIntegers :: LispVal -> Bool
 lispValWithPositiveIntegers (Number k) = k >= 0

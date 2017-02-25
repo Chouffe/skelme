@@ -52,10 +52,11 @@ eval env (List (function : args)) = do
 eval _ badForm                    = throwError $ BadSpecialForm "Unrecognized special form" badForm
 
 car :: [LispVal] -> ThrowsError LispVal
-car [List (x : _)]         = return x
-car [DottedList (x : _) _] = return x
-car [badArg]               = throwError $ TypeMismatch "pair" badArg
-car badArgList             = throwError $ NumArgs 1 badArgList
+car [List [Atom "quote", List []]] = return nil
+car [List (x : _)]                 = return x
+car [DottedList (x : _) _]         = return x
+car [badArg]                       = throwError $ TypeMismatch "pair" badArg
+car badArgList                     = throwError $ NumArgs 1 badArgList
 
 cdr :: [LispVal] -> ThrowsError LispVal
 cdr [List (_ : xs)]         = return $ List xs
