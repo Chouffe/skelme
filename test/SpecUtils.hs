@@ -5,6 +5,7 @@ import           Data
 import           Test.QuickCheck
 
 newtype ALispVal = ALispVal LispVal deriving (Eq, Show)
+newtype ALispValList = ALispValList [LispVal] deriving (Eq, Show)
 newtype ALispValString = ALispValString String deriving (Eq, Show)
 newtype ALispValAtom = ALispValAtom String deriving (Eq, Show)
 
@@ -70,8 +71,21 @@ instance Arbitrary ALispVal where
   arbitrary = ALispVal <$> lispValGen
   shrink (ALispVal lispVal) = map ALispVal $ shrinkLispVal lispVal
 
+instance Arbitrary ALispValList where
+  arbitrary = ALispValList <$> listOf lispValGen
+  shrink (ALispValList lispVals) = map (ALispValList . shrinkLispVal) lispVals
+
 instance Arbitrary ALispValString where
   arbitrary = ALispValString <$> stringGen
 
 instance Arbitrary ALispValAtom where
   arbitrary = ALispValAtom <$> lispAtomGen
+
+lispValWithPositiveIntegers :: LispVal -> Bool
+lispValWithPositiveIntegers (Number k) = k >= 0
+lispValWithPositiveIntegers (Atom "-") = False
+lispValWithPositiveIntegers (List xs) = all lispValWithPositiveIntegers xs
+lispValWithPositiveIntegers (DottedList xs x) =
+  lispValWithPositiveIntegers x && all lispValWithPositiveIntegers xs
+lispValWithPositiveIntegers _ = True
+

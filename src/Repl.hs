@@ -13,7 +13,7 @@ import           Data.Either                (either)
 import           Data.IORef                 (readIORef)
 import           Data.List                  (intercalate)
 import           Eval                       (eval, primitiveBindings)
-import           Parser                     (readExpr')
+import           Parser                     (readExpr)
 
 flushStr :: String -> IO ()
 flushStr str = putStr str >> hFlush stdout
@@ -23,7 +23,7 @@ readPrompt prompt = flushStr prompt >> getLine
 
 evalString :: Env -> String -> IO String
 evalString envRef expr =
-  runIOThrows $ liftM show $ (liftThrows $ readExpr' expr) >>= eval envRef
+  runIOThrows $ liftM show $ (liftThrows $ readExpr expr) >>= eval envRef
 
 evalAndPrint :: Env -> String -> IO ()
 evalAndPrint envRef str = evalString envRef str >>= putStrLn
@@ -82,7 +82,7 @@ replSession env = do
     liftIO $ replHook input session
     replSession env
   else
-    case readExpr' input of
+    case readExpr input of
       errorVal@(Left err) -> do
         modify (consToSession input errorVal)
         liftIO $ print err

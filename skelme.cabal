@@ -20,6 +20,7 @@ library
                      , Data
                      , Eval
                      , Repl
+                     , Parser.Internal
   build-depends:       base >= 4.7 && < 5
                      , parsec
                      , transformers
@@ -53,6 +54,7 @@ test-suite skelme-test
   default-language:    Haskell2010
   other-modules:       EvalSpec
                      , ParserSpec
+                     , Parser.InternalSpec
                      , SpecUtils
 
 source-repository head

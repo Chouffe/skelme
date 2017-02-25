@@ -3,7 +3,7 @@ module Eval where
 import           Control.Monad.Except
 import           Data
 import System.IO (IOMode(ReadMode, WriteMode), hClose, hGetLine, hPrint, hPutStrLn, openFile, readFile, stderr, stdin, stdout)
-import           Parser        (readExpr', readExprList)
+import           Parser        (readExpr, readExprList)
 
 eval :: Env -> LispVal -> IOThrowsError LispVal
 -- Primitives
@@ -54,18 +54,21 @@ eval env (List (function : args)) = do
 eval _ badForm                    = throwError $ BadSpecialForm "Unrecognized special form" badForm
 
 -- Special forms
+-- FIXME: should be quoted list? look at the doc
 car :: [LispVal] -> ThrowsError LispVal
 car [List (x : _)]         = return x
 car [DottedList (x : _) _] = return x
 car [badArg]               = throwError $ TypeMismatch "pair" badArg
 car badArgList             = throwError $ NumArgs 1 badArgList
 
+-- FIXME
 cdr :: [LispVal] -> ThrowsError LispVal
 cdr [List (_ : xs)]         = return $ List xs
 cdr [DottedList (_ : xs) x] = return $ DottedList xs x
 cdr [badArg]                = throwError $ TypeMismatch "pair" badArg
 cdr badArgList              = throwError $ NumArgs 1 badArgList
 
+-- FIXME
 cons :: [LispVal] -> ThrowsError LispVal
 cons [x, List xs]         = return $ List $ x:xs
 cons [x, DottedList xs y] = return $ DottedList (x:xs) y
@@ -129,7 +132,7 @@ closePort _ = liftThrows $ throwError $ Default "expecting a port"
 
 readProc :: [LispVal] -> IOThrowsError LispVal
 readProc [] = readProc [Port stdin]
-readProc [Port port] = (liftIO $ hGetLine port) >>= liftThrows . readExpr'
+readProc [Port port] = (liftIO $ hGetLine port) >>= liftThrows . readExpr
 readProc _ = liftThrows $ throwError $ Default "expecting a port"
 
 

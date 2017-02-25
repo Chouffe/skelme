@@ -1,4 +1,4 @@
-(define (null? xs) (if (eqv? x '()) #t #f))
+(define (null? xs) (if (eqv? xs '()) #t #f))
 (define (not x) (if x #f #t))
 (define (id x) x)
 (define (flip f) (lambda (x y) (f y x)))
