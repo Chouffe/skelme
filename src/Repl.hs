@@ -49,12 +49,15 @@ reloadRepl = do
   liftIO $ loadCoreSkelmeLibrary newEnv
   replSession newEnv
 
+replExit :: ReplSession
+replExit = liftIO (putStrLn "Leaving skelme REPL") >> return ()
+
 replSession :: Env -> ReplSession
 replSession env = do
   minput <- lift $ getInputLine "λ: "
   case minput of
-    Nothing    -> return ()
-    Just ":q"  -> return ()
+    Nothing    -> replExit
+    Just ":q"  -> replExit
     Just ":r"  -> liftIO (putStrLn "Reloading repl...") >> reloadRepl
     Just ":s"  -> get >>= liftIO . print >> replSession env
     Just ":h"  -> liftIO (putStrLn replHelp) >> replSession env
