@@ -1,6 +1,4 @@
-module Repl where
-
-import           System.IO
+module Repl (runRepl) where
 
 import           Control.Monad
 import           Control.Monad.IO.Class
@@ -8,71 +6,47 @@ import           Control.Monad.Trans.Class  (lift)
 import           Control.Monad.Trans.Except (runExceptT)
 import           Control.Monad.Trans.State
 import           Data                       (Env, LispVal, ThrowsError,
-                                             liftThrows, liftThrows,
-                                             runIOThrows)
+                                             getVarNames)
 import           Data.Either                (either)
-import           Data.IORef                 (readIORef)
-import           Data.List                  (intercalate)
-import           Eval                       (eval, primitiveBindings, load)
+import           Data.List                  (intercalate, sort)
+import           Eval                       (eval, load, primitiveBindings)
 import           Parser                     (readExpr)
 import           System.Console.Haskeline
-
-flushStr :: String -> IO ()
-flushStr str = putStr str >> hFlush stdout
-
-readPrompt :: String -> IO String
-readPrompt prompt = flushStr prompt >> getLine
-
-evalString :: Env -> String -> IO String
-evalString envRef expr =
-  runIOThrows $ liftM show $ (liftThrows $ readExpr expr) >>= eval envRef
-
-evalAndPrint :: Env -> String -> IO ()
-evalAndPrint envRef str = evalString envRef str >>= putStrLn
-
-until_ :: Monad m => (a -> Bool) -> m a -> (a -> m ()) -> m ()
-until_ p prompt action = do
-  result <- prompt
-  if p result
-  then return ()
-  else action result >> until_ p prompt action
-
--- Prints the environment after each evaluation
-runDebugRepl :: IO ()
-runDebugRepl =
-  primitiveBindings >>=
-    (\env -> until_ (== "quit") (readPrompt "λ> ")
-      (\s -> do result <- evalAndPrint env s
-                printEnv env
-                return result))
-
--- Debugging purpose
-printEnv :: Env -> IO ()
-printEnv envRef = do
-  env <- readIORef envRef
-  mapM_ (\(var, ioVal) -> readIORef ioVal >>= \val -> putStrLn $ var ++ "\t -> \t" ++ show val) env
-
--- Repl Session
 
 type SessionVal = ThrowsError LispVal
 newtype Session = Session [(String, SessionVal)]
 type ReplSession = StateT Session (InputT IO) ()
 
+-- TODO: use Text.PrettyPrint instead of janky tabs
 instance Show Session where
   show (Session xs) = delimiter ++ intercalate "\n" rows ++ delimiter
-    where rows = map showSessionRow xs
+    where n = length xs
+          rows = zipWith showSessionRow (reverse xs) (reverse (take n [0..] :: [Integer]))
           delimiter = "\n---------------------------------\n"
-          showSessionRow (input, Right lispVal) = input ++ " :λ>  " ++ show lispVal
-          showSessionRow (input, Left err) = input ++ " :λ> error: " ++ show err
+          showSessionRow (input, Right lispVal) idx = show idx ++ ":\t" ++ input ++ "\tλ: " ++ show lispVal
+          showSessionRow (input, Left err) idx = show idx ++ ":\t" ++ input ++ "\tλ: error: " ++ show err
 
 consToSession :: String -> SessionVal -> Session -> Session
 consToSession input val (Session session) = Session $ (input, val) : session
 
-replHook :: String -> Session -> IO ()
-replHook input session = do
-  case input of
-    ":h" -> print session
-    _    -> return ()
+handleReplInput :: Env -> String -> ReplSession
+handleReplInput env input =
+  case readExpr input of
+    val@(Left err) -> do
+      modify (consToSession input val)
+      liftIO (print err)
+      replSession env
+    Right parsedVal -> do
+      evaled <- liftIO $ runExceptT $ eval env parsedVal
+      modify (consToSession input evaled)
+      liftIO $ putStrLn $ either show show evaled
+      replSession env
+
+reloadRepl :: ReplSession
+reloadRepl = do
+  newEnv <- liftIO $ primitiveBindings
+  liftIO $ loadCoreSkelmeLibrary newEnv
+  replSession newEnv
 
 replSession :: Env -> ReplSession
 replSession env = do
@@ -80,30 +54,37 @@ replSession env = do
   case minput of
     Nothing    -> return ()
     Just ":q"  -> return ()
-    Just input -> do
-      if (input == ":h")
-      then do
-        session <- get
-        liftIO $ replHook input session
-        replSession env
-      else
-        case readExpr input of
-          val@(Left err) -> do
-            modify (consToSession input val)
-            liftIO (print err)
-            replSession env
-          Right parsedVal -> do
-            evaled <- liftIO $ runExceptT $ eval env parsedVal
-            modify (consToSession input evaled)
-            liftIO $ putStrLn $ either show show evaled
-            replSession env
+    Just ":r"  -> liftIO (putStrLn "Reloading repl...") >> reloadRepl
+    Just ":s"  -> get >>= liftIO . print >> replSession env
+    Just ":h"  -> liftIO (putStrLn replHelp) >> replSession env
+    Just ":b"  -> liftIO (getVarNames env >>= printVarNames) >> replSession env
+    Just input -> handleReplInput env input
+
+printVarNames :: [String] -> IO ()
+printVarNames = mapM_ putStrLn . sort
 
 loadCoreSkelmeLibrary :: Env -> IO ()
 loadCoreSkelmeLibrary env =
   (runExceptT $ load "lib/core.sklm" >>= liftM last . mapM (eval env)) >> return ()
 
+replVersion :: String
+replVersion = "skelme v0.1"
+
+replHelp :: String
+replHelp =
+  unlines [ ":b to browse bound vars"
+          , ":h to show this help menu"
+          , ":q to quit"
+          , ":r to reload"
+          , ":s to show session history"
+          ]
+
 runRepl :: IO ()
 runRepl = do
+  skelmeLogo <- readFile "lib/logo.txt"
+  putStrLn skelmeLogo
+  putStrLn replVersion
+  putStrLn replHelp
   env <- primitiveBindings
   loadCoreSkelmeLibrary env
   _ <- runInputT defaultSettings $ runStateT (replSession env) $ Session []

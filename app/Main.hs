@@ -1,11 +1,12 @@
 module Main where
 
 import           Eval               (runOne)
-import           Repl               (runReplSession)
+import           Repl               (runRepl)
 import           System.Environment (getArgs)
 
 main :: IO ()
-main = getArgs >>= \args ->
+main = do
+  args <- getArgs
   if null args
-  then runReplSession
-  else runOne $ args
+  then runRepl
+  else runOne args

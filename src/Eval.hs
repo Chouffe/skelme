@@ -135,7 +135,7 @@ readProc _           = liftThrows $ throwError $ Default "expecting a port"
 
 writeProc :: [LispVal] -> IOThrowsError LispVal
 writeProc [obj] = writeProc [obj, Port stdout]
-writeProc [obj, Port port] = liftIO $ hPrint port obj >> (return $ Bool True)
+writeProc [obj, Port port] = liftIO $ hPrint port obj >> return nil
 writeProc _ = liftThrows $ throwError $ Default "expecting a port"
 
 

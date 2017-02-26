@@ -113,6 +113,9 @@ isBound envRef var = do
 
 -- Public API
 
+getVarNames :: Env -> IO [String]
+getVarNames envRef = fmap fst <$> readIORef envRef
+
 emptyEnv :: IO Env
 emptyEnv = newIORef []
 
