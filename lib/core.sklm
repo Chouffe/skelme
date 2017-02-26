@@ -22,7 +22,7 @@
 (define (dec x) (- x 1))
 
 (define (range start end)
-  (if (start <= end)
+  (if (>= start end)
     '()
     (cons start (range (inc start) end))))
 
