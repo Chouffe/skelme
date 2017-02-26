@@ -25,6 +25,12 @@ symbol = oneOf "!#$%&|*+-/:<=>?@^_~"
 minusAtom :: Parser LispVal
 minusAtom = Atom <$> string "-"
 
+minusPrefix :: Parser LispVal
+minusPrefix = do
+  minus <- minusAtom
+  expr <- parseExpr
+  return $ List [minus, expr]
+
 symbolFirstLetter :: Parser Char
 symbolFirstLetter = oneOf "!#$%&|*+/:<=>?@^_~"
 
@@ -40,7 +46,6 @@ parseAtom = do
              "#t" -> Bool True
              "#f" -> Bool False
              _    -> Atom atom
-
 
 parsePositiveInt :: Parser Integer
 parsePositiveInt = read <$> many1 digit
@@ -71,8 +76,7 @@ parseQuoted = do
 
 parseExpr :: Parser LispVal
 parseExpr =
-  -- TODO: make it more readable
-  (try (minusAtom >>= \a -> parseExpr >>= \expr -> return $ List [a, expr]) <|> minusAtom <|> parseAtom  <|> parseNumber)
+  (try minusPrefix <|> minusAtom <|> parseAtom  <|> parseNumber)
    <|> parseString
    <|> parseQuoted
    <|> (try parseList <|> parseDottedList)
