@@ -7,6 +7,7 @@ import           Control.Monad.Trans.Except (runExceptT)
 import           Control.Monad.Trans.State
 import           Data                       (Env, LispVal, ThrowsError,
                                              getVarNames)
+import           Data.Char                  (isSpace)
 import           Data.Either                (either)
 import           Data.List                  (intercalate, sort)
 import           Eval                       (eval, load, primitiveBindings)
@@ -58,7 +59,10 @@ replSession env = do
     Just ":s"  -> get >>= liftIO . print >> replSession env
     Just ":h"  -> liftIO (putStrLn replHelp) >> replSession env
     Just ":b"  -> liftIO (getVarNames env >>= printVarNames) >> replSession env
-    Just input -> handleReplInput env input
+    Just input ->
+      if (all isSpace input)
+      then replSession env
+      else handleReplInput env input
 
 printVarNames :: [String] -> IO ()
 printVarNames = mapM_ putStrLn . sort
