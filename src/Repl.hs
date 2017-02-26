@@ -79,6 +79,10 @@ replHelp =
           , ":s to show session history"
           ]
 
+-- TODO: add autocomplete
+readlineSettings :: MonadIO m => Settings m
+readlineSettings = defaultSettings
+
 runRepl :: IO ()
 runRepl = do
   skelmeLogo <- readFile "lib/logo.txt"
@@ -87,5 +91,5 @@ runRepl = do
   putStrLn replHelp
   env <- primitiveBindings
   loadCoreSkelmeLibrary env
-  _ <- runInputT defaultSettings $ runStateT (replSession env) $ Session []
+  _ <- runInputT readlineSettings $ runStateT (replSession env) $ Session []
   return ()
