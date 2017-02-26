@@ -87,6 +87,7 @@ instance Show LispError where
 type ThrowsError = Either LispError
 
 type IOThrowsError = ExceptT LispError IO
+type Eval = IOThrowsError
 
 runIOThrows :: IOThrowsError String -> IO String
 runIOThrows action = do

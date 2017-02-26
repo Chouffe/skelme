@@ -7,6 +7,7 @@ import           System.IO            (IOMode (ReadMode, WriteMode), hClose,
                                        hGetLine, hPrint, hPutStrLn, openFile,
                                        readFile, stderr, stdin, stdout)
 
+-- TODO: rewrite types with eval
 eval :: Env -> LispVal -> IOThrowsError LispVal
 -- Primitives
 eval _ val@(Bool _)                       = return val

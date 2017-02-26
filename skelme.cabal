@@ -27,6 +27,7 @@ library
                      , hspec
                      , QuickCheck
                      , mtl
+                     , haskeline
   default-language:    Haskell2010
   ghc-options:         -Wall
 
