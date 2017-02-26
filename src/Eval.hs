@@ -156,9 +156,9 @@ primitives =
   , ("cdr", cdr)
   , ("cons", cons)
   , ("eqv?", eqv)
-  , ("+", numericBinOp (+))
-  , ("-", numericBinOp (-))
-  , ("*", numericBinOp (*))
+  , ("+", numericBinOpWithDefault 0 (+))
+  , ("-", numericBinOpWithDefault 0 (-))
+  , ("*", numericBinOpWithDefault 1 (*))
   , ("/", numericBinOp div)
   , ("%", numericBinOp mod)
   , ("=", numBoolBinop (==))
@@ -211,6 +211,14 @@ numericBinOp :: (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsError Lisp
 numericBinOp _ []      =  throwError $ NumArgs 2 []
 numericBinOp _ val@[_] =  throwError $ NumArgs 2 val
 numericBinOp op parameters = mapM unpackNum parameters >>= return . Number . foldl1 op
+
+numericBinOpWithDefault :: Integer -> (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsError LispVal
+numericBinOpWithDefault defaultVal _ []   = return $ Number defaultVal
+numericBinOpWithDefault defaultVal op [x] = unpackNum x >>= \y -> return $ Number (op defaultVal y)
+numericBinOpWithDefault _ op (x:xs)       = do
+  y <- unpackNum x
+  ys <- mapM unpackNum xs
+  return $ Number $ foldl op y ys
 
 -- TODO: use GADTs or Phantom Types to make this impossible at compile time
 unpackNum :: LispVal -> ThrowsError Integer
